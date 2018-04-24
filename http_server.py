@@ -1,6 +1,7 @@
 import socket
 import sys
 import os
+import mimetypes
 
 def response_ok(body=b"This is a minimal response", mimetype=b"text/plain"):
     """
@@ -51,8 +52,12 @@ def response_not_found():
     # You can re-use most of the code from the 405 Method Not
     # Allowed response.
 
-    pass
-    
+    return b"\r\n".join([
+                b"HTTP/1.1 404 Not Found\r\n",
+                b"Content-Type: text/plain\r\n",
+                b"\r\n",
+                b"The requested resource is not available\r\n",
+            ])
 
 def resolve_uri(uri):
     """
@@ -89,8 +94,35 @@ def resolve_uri(uri):
     # Hint: When opening a file, use open(filename, "rb") to open and read the
     # file as a stream of bytes.
 
-    content = b"not implemented"
-    mime_type = b"not implemented"
+    guessed_mime_type = mimetypes.guess_type(uri)
+    guessed_mime_type = guessed_mime_type[0]
+
+    if guessed_mime_type == 'text/html':
+#        content = b"HTML"
+        mime_type = b"str(guessed_mime_type)"
+    elif guessed_mime_type == 'image/png':
+#        content = b"PNG"
+        mime_type = b"str(guessed_mime_type)"
+    elif guessed_mime_type == 'text/plain':
+#        content = b"Text"
+        mime_type = b"str(guessed_mime_type)"
+    elif guessed_mime_type == 'None':
+        mime_type = b"str(text/directory)"
+    else:
+        content = b"not implemented"
+        mime_type = b"not implemented"
+
+    try:
+        uri = "webroot" + uri
+        open(uri, "rb")
+        file = (open(uri, "rb"))
+        content = file.read()
+
+    except FileNotFoundError:
+        content = response_not_found()
+    except IsADirectoryError:
+        content = str(os.listdir('webroot'))
+        content = content.encode()
 
     return content, mime_type
 
@@ -123,6 +155,8 @@ def server(log_buffer=sys.stderr):
                     uri = parse_request(request)
                 except NotImplementedError:
                     response = response_method_not_allowed()
+                except FileNotFoundError:
+                    content = response_not_found()
                 else:
                     # TODO: resolve_uri will raise a NameError if the file
                     # specified by uri can't be found. If it does raise a
